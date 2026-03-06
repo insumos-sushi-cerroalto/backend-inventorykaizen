@@ -105,20 +105,12 @@ class CompraPadre(models.Model):
     def save(self, *args, **kwargs):
         # Asignar número basado en la fecha (agrupado por día)
         if self.numero is None:
-            # Obtener todas las fechas únicas ordenadas ascendentemente
-            fechas_unicas = list(Venta.objects.values_list('fecha', flat=True).distinct().order_by('fecha'))
-            
-            # Buscar el número basado en la fecha
-            numero = 1
-            for idx, fecha in enumerate(fechas_unicas, 1):
-                if fecha == self.fecha:
-                    numero = idx
-                    break
+            existente = CompraPadre.objects.filter(fecha=self.fecha).first()
+            if existente:
+                self.numero = existente.numero
             else:
-                # Si la fecha no existe aún, será el siguiente número
-                numero = len(fechas_unicas) + 1
-            
-            self.numero = numero
+                total_fechas = CompraPadre.objects.values('fecha').distinct().count()
+                self.numero = total_fechas + 1
         super().save(*args, **kwargs)
     
     class Meta:
@@ -151,20 +143,12 @@ class Compra(models.Model):
     def save(self, *args, **kwargs):
         # Asignar número basado en la fecha (agrupado por día)
         if self.numero is None:
-            # Obtener todas las fechas únicas ordenadas ascendentemente
-            fechas_unicas = list(Compra.objects.values_list('fecha', flat=True).distinct().order_by('fecha'))
-            
-            # Buscar el número basado en la fecha
-            numero = 1
-            for idx, fecha in enumerate(fechas_unicas, 1):
-                if fecha == self.fecha:
-                    numero = idx
-                    break
+            existente = Compra.objects.filter(fecha=self.fecha).first()
+            if existente:
+                self.numero = existente.numero
             else:
-                # Si la fecha no existe aún, será el siguiente número
-                numero = len(fechas_unicas) + 1
-            
-            self.numero = numero
+                total_fechas = Compra.objects.values('fecha').distinct().count()
+                self.numero = total_fechas + 1
         super().save(*args, **kwargs)
     
     class Meta:
@@ -211,20 +195,12 @@ class Venta(models.Model):
     def save(self, *args, **kwargs):
         # Asignar número basado en la fecha (agrupado por día)
         if self.numero is None:
-            # Obtener todas las fechas únicas ordenadas ascendentemente
-            fechas_unicas = list(Venta.objects.values_list('fecha', flat=True).distinct().order_by('fecha'))
-            
-            # Buscar el número basado en la fecha
-            numero = 1
-            for idx, fecha in enumerate(fechas_unicas, 1):
-                if fecha == self.fecha:
-                    numero = idx
-                    break
+            existente = Venta.objects.filter(fecha=self.fecha).first()
+            if existente:
+                self.numero = existente.numero
             else:
-                # Si la fecha no existe aún, será el siguiente número
-                numero = len(fechas_unicas) + 1
-            
-            self.numero = numero
+                total_fechas = Venta.objects.values('fecha').distinct().count()
+                self.numero = total_fechas + 1
         super().save(*args, **kwargs)
     
     class Meta:

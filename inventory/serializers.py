@@ -1,3 +1,4 @@
+#inventory\serializers.py
 from rest_framework import serializers
 from .models import Producto, Compra, CompraPadre, Venta
 
@@ -7,7 +8,7 @@ class ProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Producto
         fields = ['id', 'id_producto', 'nombre', 'imagen', 'unidad_medida', 'descripcion', 
-                  'fecha_creacion', 'stock_actual']
+                  'precio_unitario', 'fecha_creacion', 'stock_actual']
         read_only_fields = ['fecha_creacion', 'id_producto']
 
 

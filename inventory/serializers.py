@@ -10,6 +10,12 @@ class ProductoSerializer(serializers.ModelSerializer):
         fields = ['id', 'id_producto', 'nombre', 'imagen', 'unidad_medida', 'descripcion', 
                   'precio_unitario', 'fecha_creacion', 'stock_actual']
         read_only_fields = ['fecha_creacion', 'id_producto']
+    
+    def to_internal_value(self, data):
+        # Si imagen es string vacío, setear None
+        if 'imagen' in data and data['imagen'] == '':
+            data['imagen'] = None
+        return super().to_internal_value(data)
 
 
 class CompraSerializer(serializers.ModelSerializer):

@@ -4,6 +4,7 @@ from .models import Producto, Compra, CompraPadre, Venta
 
 class ProductoSerializer(serializers.ModelSerializer):
     stock_actual = serializers.ReadOnlyField()
+    precio_unitario = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     
     class Meta:
         model = Producto
@@ -15,6 +16,8 @@ class ProductoSerializer(serializers.ModelSerializer):
         # Si imagen es string vacío, setear None
         if 'imagen' in data and data['imagen'] == '':
             data['imagen'] = None
+        if 'precio_unitario' in data and data['precio_unitario'] == '':
+            data['precio_unitario'] = None
         return super().to_internal_value(data)
 
 

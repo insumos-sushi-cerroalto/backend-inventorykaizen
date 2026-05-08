@@ -9,7 +9,7 @@ class Producto(models.Model):
     imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
     unidad_medida = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
-    precio_unitario = models.IntegerField(validators=[MinValueValidator(1)], default=1)
+    precio_unitario = models.IntegerField(validators=[MinValueValidator(1)], null=True, blank=True, default=None)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     
     def save(self, *args, **kwargs):

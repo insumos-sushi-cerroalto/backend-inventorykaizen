@@ -26,6 +26,3 @@ staticfiles/
 
 # Logs
 logs/
-
-# Archivos de migración (opcional, pero a menudo se incluyen)
-migrations/

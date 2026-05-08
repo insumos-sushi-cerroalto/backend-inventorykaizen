@@ -20,6 +20,17 @@ class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
     
+    def create(self, request, *args, **kwargs):
+        """
+        Soporta creación simple (dict) y masiva (lista de dicts).
+        """
+        is_many = isinstance(request.data, list)
+        serializer = self.get_serializer(data=request.data, many=is_many)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
     def destroy(self, request, *args, **kwargs):
         """
         Elimina un producto junto con todas sus ventas y compras asociadas.
@@ -69,6 +80,17 @@ class CompraViewSet(viewsets.ModelViewSet):
     queryset = Compra.objects.all()
     serializer_class = CompraSerializer
     
+    def create(self, request, *args, **kwargs):
+        """
+        Soporta creación simple (dict) y masiva (lista de dicts).
+        """
+        is_many = isinstance(request.data, list)
+        serializer = self.get_serializer(data=request.data, many=is_many)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
     def get_queryset(self):
         queryset = super().get_queryset()
         fecha_inicio = self.request.query_params.get('fecha_inicio')
@@ -111,6 +133,17 @@ class CompraPadreViewSet(viewsets.ModelViewSet):
             return CompraPadreCreateUpdateSerializer
         return CompraPadreSerializer
     
+    def create(self, request, *args, **kwargs):
+        """
+        Soporta creación simple (dict) y masiva (lista de dicts).
+        """
+        is_many = isinstance(request.data, list)
+        serializer = self.get_serializer(data=request.data, many=is_many)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
     def get_queryset(self):
         queryset = super().get_queryset()
         fecha_inicio = self.request.query_params.get('fecha_inicio')
@@ -146,6 +179,17 @@ class VentaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Venta.objects.all()
     serializer_class = VentaSerializer
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Soporta creación simple (dict) y masiva (lista de dicts).
+        """
+        is_many = isinstance(request.data, list)
+        serializer = self.get_serializer(data=request.data, many=is_many)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     def get_queryset(self):
         queryset = super().get_queryset()

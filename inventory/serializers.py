@@ -154,7 +154,7 @@ class VentaSerializer(serializers.ModelSerializer):
 class InventarioSerializer(serializers.Serializer):
     producto_id = serializers.IntegerField()
     producto_nombre = serializers.CharField()
-    producto_imagen = serializers.ImageField()
+    producto_imagen = serializers.URLField(allow_null=True)
     unidad_medida = serializers.CharField()
     stock_actual = serializers.IntegerField()
     total_compras = serializers.IntegerField()

@@ -20,6 +20,14 @@ class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
     
+    def get_queryset(self):
+        """Filtrar productos por usuario autenticado"""
+        return Producto.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        """Asignar el usuario actual al crear un producto"""
+        serializer.save(user=self.request.user)
+    
     def create(self, request, *args, **kwargs):
         """
         Soporta creación simple (dict) y masiva (lista de dicts).
@@ -39,8 +47,9 @@ class ProductoViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         producto_id = instance.id
         
-        # Obtener las compras padre asociadas a este producto
+        # Obtener las compras padre asociadas a este producto para este usuario
         compras_padre_ids = CompraPadre.objects.filter(
+            user=request.user,
             compras__producto_id=producto_id
         ).values_list('id', flat=True)
         
@@ -50,7 +59,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         # Eliminar compras padre que quedaron vacías
         for compra_padre_id in compras_padre_ids:
             try:
-                compra_padre = CompraPadre.objects.get(id=compra_padre_id)
+                compra_padre = CompraPadre.objects.get(id=compra_padre_id, user=request.user)
                 if compra_padre.compras.count() == 0:
                     compra_padre.delete()
             except CompraPadre.DoesNotExist:
@@ -80,19 +89,9 @@ class CompraViewSet(viewsets.ModelViewSet):
     queryset = Compra.objects.all()
     serializer_class = CompraSerializer
     
-    def create(self, request, *args, **kwargs):
-        """
-        Soporta creación simple (dict) y masiva (lista de dicts).
-        """
-        is_many = isinstance(request.data, list)
-        serializer = self.get_serializer(data=request.data, many=is_many)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-    
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Filtrar compras por usuario autenticado"""
+        queryset = Compra.objects.filter(user=self.request.user)
         fecha_inicio = self.request.query_params.get('fecha_inicio')
         fecha_fin = self.request.query_params.get('fecha_fin')
         producto = self.request.query_params.get('producto')
@@ -108,6 +107,10 @@ class CompraViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(compra_padre_id=compra_padre)
         
         return queryset
+    
+    def perform_create(self, serializer):
+        """Asignar el usuario actual al crear una compra"""
+        serializer.save(user=self.request.user)
     
     @action(detail=False, methods=['get'])
     def resumen(self, request):
@@ -133,19 +136,9 @@ class CompraPadreViewSet(viewsets.ModelViewSet):
             return CompraPadreCreateUpdateSerializer
         return CompraPadreSerializer
     
-    def create(self, request, *args, **kwargs):
-        """
-        Soporta creación simple (dict) y masiva (lista de dicts).
-        """
-        is_many = isinstance(request.data, list)
-        serializer = self.get_serializer(data=request.data, many=is_many)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-    
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Filtrar compras padre por usuario autenticado"""
+        queryset = CompraPadre.objects.filter(user=self.request.user)
         fecha_inicio = self.request.query_params.get('fecha_inicio')
         fecha_fin = self.request.query_params.get('fecha_fin')
         proveedor = self.request.query_params.get('proveedor')
@@ -158,6 +151,10 @@ class CompraPadreViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(proveedor__icontains=proveedor)
         
         return queryset
+    
+    def perform_create(self, serializer):
+        """Asignar el usuario actual al crear una compra padre"""
+        serializer.save(user=self.request.user)
     
     @action(detail=False, methods=['get'])
     def resumen(self, request):
@@ -180,19 +177,9 @@ class VentaViewSet(viewsets.ModelViewSet):
     queryset = Venta.objects.all()
     serializer_class = VentaSerializer
     
-    def create(self, request, *args, **kwargs):
-        """
-        Soporta creación simple (dict) y masiva (lista de dicts).
-        """
-        is_many = isinstance(request.data, list)
-        serializer = self.get_serializer(data=request.data, many=is_many)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-    
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Filtrar ventas por usuario autenticado"""
+        queryset = Venta.objects.filter(user=self.request.user)
         fecha_inicio = self.request.query_params.get('fecha_inicio')
         fecha_fin = self.request.query_params.get('fecha_fin')
         producto = self.request.query_params.get('producto')
@@ -211,6 +198,10 @@ class VentaViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(pagado=pagado.lower() == 'true')
         
         return queryset
+    
+    def perform_create(self, serializer):
+        """Asignar el usuario actual al crear una venta"""
+        serializer.save(user=self.request.user)
     
     @action(detail=False, methods=['get'])
     def resumen(self, request):
@@ -241,8 +232,13 @@ class VentaViewSet(viewsets.ModelViewSet):
 class InventarioViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Producto.objects.all()
+    
+    def get_queryset(self):
+        """Filtrar productos por usuario autenticado"""
+        return Producto.objects.filter(user=self.request.user)
+    
     def list(self, request):
-        productos = Producto.objects.all()
+        productos = self.get_queryset()
         inventario = []
         
         for producto in productos:
@@ -282,8 +278,8 @@ class InventarioViewSet(viewsets.GenericViewSet):
         fecha_inicio = request.query_params.get('fecha_inicio')
         fecha_fin = request.query_params.get('fecha_fin')
 
-        compras = Compra.objects.all()
-        ventas = Venta.objects.all()
+        compras = Compra.objects.filter(user=request.user)
+        ventas = Venta.objects.filter(user=request.user)
 
         if fecha_inicio:
             compras = compras.filter(fecha__gte=fecha_inicio)

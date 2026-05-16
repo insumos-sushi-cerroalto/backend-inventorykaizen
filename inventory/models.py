@@ -2,9 +2,11 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.db.models import Q
+from django.contrib.auth.models import User
 
 class Producto(models.Model):
-    id_producto = models.IntegerField(unique=True, null=True, blank=True, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='productos')
+    id_producto = models.IntegerField(null=True, blank=True, editable=False)
     nombre = models.CharField(max_length=200)
     imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
     unidad_medida = models.CharField(max_length=100)
@@ -14,8 +16,8 @@ class Producto(models.Model):
     
     def save(self, *args, **kwargs):
         if self.id_producto is None:
-            # Encontrar el primer número disponible
-            usado = set(Producto.objects.values_list('id_producto', flat=True).distinct())
+            # Encontrar el primer número disponible para este usuario
+            usado = set(Producto.objects.filter(user=self.user).values_list('id_producto', flat=True).distinct())
             numero = 1
             while numero in usado:
                 numero += 1
@@ -23,14 +25,14 @@ class Producto(models.Model):
         super().save(*args, **kwargs)
     
     @staticmethod
-    def calcular_numero_dinámico_venta(fecha_venta, venta_id=None):
+    def calcular_numero_dinámico_venta(fecha_venta, user, venta_id=None):
         """
-        Calcula el número de venta agrupado por fecha.
+        Calcula el número de venta agrupado por fecha para un usuario específico.
         Todas las ventas del mismo día tienen el mismo número.
         Las fechas únicas están ordenadas ascendentemente.
         """
-        # Obtener todas las fechas únicas ordenadas ascendentemente
-        fechas_unicas = Venta.objects.values_list('fecha', flat=True).distinct().order_by('fecha')
+        # Obtener todas las fechas únicas ordenadas ascendentemente para este usuario
+        fechas_unicas = Venta.objects.filter(user=user).values_list('fecha', flat=True).distinct().order_by('fecha')
         
         # Buscar la posición de la fecha actual
         for numero, fecha in enumerate(fechas_unicas, 1):
@@ -41,14 +43,14 @@ class Producto(models.Model):
         return len(list(fechas_unicas)) + 1
     
     @staticmethod
-    def calcular_numero_dinámico_compra(fecha_compra, compra_id=None):
+    def calcular_numero_dinámico_compra(fecha_compra, user, compra_id=None):
         """
-        Calcula el número de compra agrupado por fecha.
+        Calcula el número de compra agrupado por fecha para un usuario específico.
         Todas las compras del mismo día tienen el mismo número.
         Las fechas únicas están ordenadas ascendentemente.
         """
-        # Obtener todas las fechas únicas ordenadas ascendentemente
-        fechas_unicas = Compra.objects.values_list('fecha', flat=True).distinct().order_by('fecha')
+        # Obtener todas las fechas únicas ordenadas ascendentemente para este usuario
+        fechas_unicas = Compra.objects.filter(user=user).values_list('fecha', flat=True).distinct().order_by('fecha')
         
         # Buscar la posición de la fecha actual
         for numero, fecha in enumerate(fechas_unicas, 1):
@@ -59,14 +61,14 @@ class Producto(models.Model):
         return len(list(fechas_unicas)) + 1
     
     @staticmethod
-    def calcular_numero_dinámico_compra_padre(fecha_compra, compra_padre_id=None):
+    def calcular_numero_dinámico_compra_padre(fecha_compra, user, compra_padre_id=None):
         """
-        Calcula el número de compra padre agrupado por fecha.
+        Calcula el número de compra padre agrupado por fecha para un usuario específico.
         Todas las compras padre del mismo día tienen el mismo número.
         Las fechas únicas están ordenadas ascendentemente.
         """
-        # Obtener todas las fechas únicas ordenadas ascendentemente
-        fechas_unicas = CompraPadre.objects.values_list('fecha', flat=True).distinct().order_by('fecha')
+        # Obtener todas las fechas únicas ordenadas ascendentemente para este usuario
+        fechas_unicas = CompraPadre.objects.filter(user=user).values_list('fecha', flat=True).distinct().order_by('fecha')
         
         # Buscar la posición de la fecha actual
         for numero, fecha in enumerate(fechas_unicas, 1):
@@ -78,6 +80,9 @@ class Producto(models.Model):
     
     class Meta:
         ordering = ['nombre']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'id_producto'], name='unique_producto_por_usuario')
+        ]
     
     def __str__(self):
         return self.nombre
@@ -97,6 +102,7 @@ class Producto(models.Model):
 # Modelo CompraPadre para agrupar múltiples compras
 class CompraPadre(models.Model):
     """Agrupa múltiples productos en una sola compra"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compras_padre')
     numero = models.IntegerField(null=True, blank=True, editable=False)
     fecha = models.DateField()
     proveedor = models.CharField(max_length=200)
@@ -104,13 +110,13 @@ class CompraPadre(models.Model):
     fecha_registro = models.DateTimeField(auto_now_add=True)
     
     def save(self, *args, **kwargs):
-        # Asignar número basado en la fecha (agrupado por día)
+        # Asignar número basado en la fecha (agrupado por día) para este usuario
         if self.numero is None:
-            existente = CompraPadre.objects.filter(fecha=self.fecha).first()
+            existente = CompraPadre.objects.filter(user=self.user, fecha=self.fecha).first()
             if existente:
                 self.numero = existente.numero
             else:
-                total_fechas = CompraPadre.objects.values('fecha').distinct().count()
+                total_fechas = CompraPadre.objects.filter(user=self.user).values('fecha').distinct().count()
                 self.numero = total_fechas + 1
         super().save(*args, **kwargs)
     
@@ -130,6 +136,7 @@ class CompraPadre(models.Model):
 
 # Modelo Compra vinculado a CompraPadre
 class Compra(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compras')
     numero = models.IntegerField(null=True, blank=True, editable=False)
     compra_padre = models.ForeignKey(CompraPadre, on_delete=models.CASCADE, related_name='compras', null=True, blank=True)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='compras')
@@ -142,13 +149,13 @@ class Compra(models.Model):
     fecha_registro = models.DateTimeField(auto_now_add=True)
     
     def save(self, *args, **kwargs):
-        # Asignar número basado en la fecha (agrupado por día)
+        # Asignar número basado en la fecha (agrupado por día) para este usuario
         if self.numero is None:
-            existente = Compra.objects.filter(fecha=self.fecha).first()
+            existente = Compra.objects.filter(user=self.user, fecha=self.fecha).first()
             if existente:
                 self.numero = existente.numero
             else:
-                total_fechas = Compra.objects.values('fecha').distinct().count()
+                total_fechas = Compra.objects.filter(user=self.user).values('fecha').distinct().count()
                 self.numero = total_fechas + 1
         super().save(*args, **kwargs)
     
@@ -181,6 +188,7 @@ class Venta(models.Model):
         ('credito', 'Crédito'),
     ]
     
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ventas')
     numero = models.IntegerField(null=True, blank=True, editable=False)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='ventas')
     fecha = models.DateField()
@@ -194,13 +202,13 @@ class Venta(models.Model):
     fecha_registro = models.DateTimeField(auto_now_add=True)
     
     def save(self, *args, **kwargs):
-        # Asignar número basado en la fecha (agrupado por día)
+        # Asignar número basado en la fecha (agrupado por día) para este usuario
         if self.numero is None:
-            existente = Venta.objects.filter(fecha=self.fecha).first()
+            existente = Venta.objects.filter(user=self.user, fecha=self.fecha).first()
             if existente:
                 self.numero = existente.numero
             else:
-                total_fechas = Venta.objects.values('fecha').distinct().count()
+                total_fechas = Venta.objects.filter(user=self.user).values('fecha').distinct().count()
                 self.numero = total_fechas + 1
         super().save(*args, **kwargs)
     

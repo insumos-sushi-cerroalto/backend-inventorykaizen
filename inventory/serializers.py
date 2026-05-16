@@ -35,7 +35,20 @@ class CompraSerializer(serializers.ModelSerializer):
     
     def get_numero(self, obj):
         """Calcula dinámicamente el número basado en la fecha"""
-        return Producto.calcular_numero_dinámico_compra(obj.fecha, obj.id)
+        return Producto.calcular_numero_dinámico_compra(obj.fecha, obj.user)
+
+    def validate_producto(self, value):
+        request = self.context.get('request')
+        if request and value.user != request.user:
+            raise serializers.ValidationError('El producto no pertenece al usuario autenticado.')
+        return value
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        compra_padre = attrs.get('compra_padre')
+        if request and compra_padre and compra_padre.user != request.user:
+            raise serializers.ValidationError('La compra padre no pertenece al usuario autenticado.')
+        return attrs
 
 
 class CompraPadreSerializer(serializers.ModelSerializer):
@@ -53,7 +66,7 @@ class CompraPadreSerializer(serializers.ModelSerializer):
     
     def get_numero(self, obj):
         """Calcula dinámicamente el número basado en la fecha"""
-        return Producto.calcular_numero_dinámico_compra_padre(obj.fecha, obj.id)
+        return Producto.calcular_numero_dinámico_compra_padre(obj.fecha, obj.user)
 
 
 class CompraPadreCreateUpdateSerializer(serializers.ModelSerializer):
@@ -76,7 +89,7 @@ class CompraPadreCreateUpdateSerializer(serializers.ModelSerializer):
     
     def get_numero(self, obj):
         """Calcula dinámicamente el número basado en la fecha"""
-        return Producto.calcular_numero_dinámico_compra_padre(obj.fecha, obj.id)
+        return Producto.calcular_numero_dinámico_compra_padre(obj.fecha, obj.user)
     
     def create(self, validated_data):
         compras_data = validated_data.pop('compras_data', [])
@@ -84,26 +97,25 @@ class CompraPadreCreateUpdateSerializer(serializers.ModelSerializer):
         
         for compra_item in compras_data:
             try:
-                # Asegurar que tenemos todos los campos requeridos
                 compra_item['compra_padre'] = compra_padre
                 compra_item['notas'] = compra_item.get('notas', '')
+                compra_item['user'] = compra_padre.user
                 
-                # Validar que los campos requeridos existan
                 campos_requeridos = ['producto', 'fecha', 'cantidad', 'costo_unitario', 'valor_venta', 'proveedor']
                 for campo in campos_requeridos:
                     if campo not in compra_item:
                         raise ValueError(f"Falta el campo requerido: {campo}")
                 
-                # Obtener la instancia de Producto si solo tenemos el ID
                 if isinstance(compra_item['producto'], int):
                     try:
-                        compra_item['producto'] = Producto.objects.get(id=compra_item['producto'])
+                        compra_item['producto'] = Producto.objects.get(id=compra_item['producto'], user=compra_padre.user)
                     except Producto.DoesNotExist:
-                        raise ValueError(f"Producto con ID {compra_item['producto']} no existe")
+                        raise ValueError(f"Producto con ID {compra_item['producto']} no existe o no pertenece al usuario")
+                elif compra_item['producto'].user != compra_padre.user:
+                    raise ValueError('El producto no pertenece al usuario autenticado')
                 
                 Compra.objects.create(**compra_item)
             except Exception as e:
-                # Si hay error, eliminamos la compra padre y lanzamos el error
                 compra_padre.delete()
                 raise serializers.ValidationError(f"Error al crear item de compra: {str(e)}")
         
@@ -122,19 +134,20 @@ class CompraPadreCreateUpdateSerializer(serializers.ModelSerializer):
                 try:
                     compra_item['compra_padre'] = instance
                     compra_item['notas'] = compra_item.get('notas', '')
+                    compra_item['user'] = instance.user
                     
-                    # Validar que los campos requeridos existan
                     campos_requeridos = ['producto', 'fecha', 'cantidad', 'costo_unitario', 'valor_venta', 'proveedor']
                     for campo in campos_requeridos:
                         if campo not in compra_item:
                             raise ValueError(f"Falta el campo requerido: {campo}")
                     
-                    # Obtener la instancia de Producto si solo tenemos el ID
                     if isinstance(compra_item['producto'], int):
                         try:
-                            compra_item['producto'] = Producto.objects.get(id=compra_item['producto'])
+                            compra_item['producto'] = Producto.objects.get(id=compra_item['producto'], user=instance.user)
                         except Producto.DoesNotExist:
-                            raise ValueError(f"Producto con ID {compra_item['producto']} no existe")
+                            raise ValueError(f"Producto con ID {compra_item['producto']} no existe o no pertenece al usuario")
+                    elif compra_item['producto'].user != instance.user:
+                        raise ValueError('El producto no pertenece al usuario autenticado')
                     
                     Compra.objects.create(**compra_item)
                 except Exception as e:
@@ -157,7 +170,13 @@ class VentaSerializer(serializers.ModelSerializer):
     
     def get_numero(self, obj):
         """Calcula dinámicamente el número basado en la fecha"""
-        return Producto.calcular_numero_dinámico_venta(obj.fecha, obj.id)
+        return Producto.calcular_numero_dinámico_venta(obj.fecha, obj.user)
+
+    def validate_producto(self, value):
+        request = self.context.get('request')
+        if request and value.user != request.user:
+            raise serializers.ValidationError('El producto no pertenece al usuario autenticado.')
+        return value
 
 
 class InventarioSerializer(serializers.Serializer):

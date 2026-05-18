@@ -180,24 +180,76 @@ class VentaViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filtrar ventas por usuario autenticado"""
         queryset = Venta.objects.filter(user=self.request.user)
-        fecha_inicio = self.request.query_params.get('fecha_inicio')
-        fecha_fin = self.request.query_params.get('fecha_fin')
-        producto = self.request.query_params.get('producto')
-        canal = self.request.query_params.get('canal')
-        pagado = self.request.query_params.get('pagado')
-        mes = self.request.query_params.get('mes')
-        anio = self.request.query_params.get('anio')
+        params = self.request.query_params
+
+        fecha_inicio = params.get('fecha_inicio')
+        fecha_fin = params.get('fecha_fin')
+        producto = params.get('producto')
+        producto_nombre = params.get('producto_nombre')
+        cliente = params.get('cliente')
+        canal = params.get('canal') or params.get('canal_venta')
+        pagado = params.get('pagado')
+        numero = params.get('numero')
+        cantidad = params.get('cantidad')
+        precio_unitario = params.get('precio_unitario')
+        total = params.get('total')
+        fecha = params.get('fecha')
+        mes = params.get('mes')
+        anio = params.get('anio')
+        ordering = params.get('ordering')
+
+        def split_values(value):
+            if not value:
+                return []
+            return [item.strip() for item in value.split(',') if item.strip() != '']
 
         if fecha_inicio:
             queryset = queryset.filter(fecha__gte=fecha_inicio)
         if fecha_fin:
             queryset = queryset.filter(fecha__lte=fecha_fin)
+        if fecha:
+            fechas = split_values(fecha)
+            if fechas:
+                queryset = queryset.filter(fecha__in=fechas)
         if producto:
             queryset = queryset.filter(producto_id=producto)
+        if producto_nombre:
+            nombres = split_values(producto_nombre)
+            if nombres:
+                queryset = queryset.filter(producto__nombre__in=nombres)
+        if cliente:
+            clientes = split_values(cliente)
+            if clientes:
+                queryset = queryset.filter(cliente__in=clientes)
         if canal:
-            queryset = queryset.filter(canal_venta=canal)
-        if pagado is not None:
-            queryset = queryset.filter(pagado=pagado.lower() == 'true')
+            canales = split_values(canal)
+            if canales:
+                queryset = queryset.filter(canal_venta__in=canales)
+        if pagado:
+            valores = []
+            for item in split_values(pagado):
+                if item.lower() == 'true':
+                    valores.append(True)
+                elif item.lower() == 'false':
+                    valores.append(False)
+            if valores:
+                queryset = queryset.filter(pagado__in=valores)
+        if numero:
+            ids = [int(item) for item in split_values(numero) if item.isdigit()]
+            if ids:
+                queryset = queryset.filter(numero__in=ids)
+        if cantidad:
+            cantidades = [int(item) for item in split_values(cantidad) if item.isdigit()]
+            if cantidades:
+                queryset = queryset.filter(cantidad__in=cantidades)
+        if precio_unitario:
+            precios = [int(item) for item in split_values(precio_unitario) if item.isdigit()]
+            if precios:
+                queryset = queryset.filter(precio_unitario__in=precios)
+        if total:
+            totales = [int(item) for item in split_values(total) if item.isdigit()]
+            if totales:
+                queryset = queryset.annotate(total=F('cantidad') * F('precio_unitario')).filter(total__in=totales)
 
         if mes is not None:
             try:
@@ -209,6 +261,31 @@ class VentaViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(fecha__year=int(anio))
             except (ValueError, TypeError):
                 pass
+
+        if ordering:
+            direction = ''
+            order_field = ordering
+            if ordering.startswith('-'):
+                direction = '-'
+                order_field = ordering[1:]
+
+            field_map = {
+                'numero': 'numero',
+                'fecha': 'fecha',
+                'producto_nombre': 'producto__nombre',
+                'cliente': 'cliente',
+                'canal_venta': 'canal_venta',
+                'cantidad': 'cantidad',
+                'precio_unitario': 'precio_unitario',
+                'pagado': 'pagado',
+                'total': 'total'
+            }
+
+            if order_field in field_map:
+                order_by = f"{direction}{field_map[order_field]}"
+                if order_field == 'total':
+                    queryset = queryset.annotate(total=F('cantidad') * F('precio_unitario'))
+                queryset = queryset.order_by(order_by)
 
         return queryset
             

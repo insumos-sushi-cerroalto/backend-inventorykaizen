@@ -1,6 +1,7 @@
 # inventory/views.py
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.permissions import IsAuthenticated
@@ -172,8 +173,15 @@ class CompraPadreViewSet(viewsets.ModelViewSet):
         })
 
 
+class VentaPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
 class VentaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    pagination_class = VentaPagination
     queryset = Venta.objects.all()
     serializer_class = VentaSerializer
     
@@ -251,7 +259,7 @@ class VentaViewSet(viewsets.ModelViewSet):
             if totales:
                 queryset = queryset.annotate(total=F('cantidad') * F('precio_unitario')).filter(total__in=totales)
 
-        if mes is not None:
+        if mes is not None and mes.lower() != 'todos':
             try:
                 queryset = queryset.filter(fecha__month=int(mes))
             except (ValueError, TypeError):

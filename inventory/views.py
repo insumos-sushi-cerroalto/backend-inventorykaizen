@@ -185,7 +185,9 @@ class VentaViewSet(viewsets.ModelViewSet):
         producto = self.request.query_params.get('producto')
         canal = self.request.query_params.get('canal')
         pagado = self.request.query_params.get('pagado')
-        
+        mes = self.request.query_params.get('mes')
+        anio = self.request.query_params.get('anio')
+
         if fecha_inicio:
             queryset = queryset.filter(fecha__gte=fecha_inicio)
         if fecha_fin:
@@ -196,9 +198,20 @@ class VentaViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(canal_venta=canal)
         if pagado is not None:
             queryset = queryset.filter(pagado=pagado.lower() == 'true')
-        
+
+        if mes is not None:
+            try:
+                queryset = queryset.filter(fecha__month=int(mes))
+            except (ValueError, TypeError):
+                pass
+        if anio is not None:
+            try:
+                queryset = queryset.filter(fecha__year=int(anio))
+            except (ValueError, TypeError):
+                pass
+
         return queryset
-    
+            
     def perform_create(self, serializer):
         """Asignar el usuario actual al crear una venta"""
         serializer.save(user=self.request.user)

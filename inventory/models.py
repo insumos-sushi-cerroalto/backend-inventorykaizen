@@ -107,6 +107,7 @@ class CompraPadre(models.Model):
     fecha = models.DateField()
     proveedor = models.CharField(max_length=200)
     notas = models.TextField(blank=True)
+    factura = models.FileField(upload_to='facturas/', null=True, blank=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
     
     def save(self, *args, **kwargs):

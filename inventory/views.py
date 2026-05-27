@@ -2,6 +2,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.permissions import IsAuthenticated
@@ -130,7 +131,16 @@ class CompraViewSet(viewsets.ModelViewSet):
 class CompraPadreViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar compras padre con múltiples productos"""
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     queryset = CompraPadre.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print('CompraPadre create invalid data:', request.data)
+            print('CompraPadre create invalid files:', request.FILES)
+            print('CompraPadre create errors:', serializer.errors)
+        return super().create(request, *args, **kwargs)
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:

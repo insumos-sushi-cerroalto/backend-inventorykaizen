@@ -1,4 +1,5 @@
 #inventory\serializers.py
+from django.http import QueryDict
 from rest_framework import serializers
 from .models import Producto, Compra, CompraPadre, Venta
 
@@ -57,12 +58,22 @@ class CompraPadreSerializer(serializers.ModelSerializer):
     costo_total = serializers.ReadOnlyField()
     cantidad_productos = serializers.ReadOnlyField()
     numero = serializers.SerializerMethodField()
+    factura = serializers.FileField(required=False, allow_null=True)
+    factura_url = serializers.SerializerMethodField()
     
     class Meta:
         model = CompraPadre
-        fields = ['id', 'numero', 'fecha', 'proveedor', 'notas', 'compras', 
+        fields = ['id', 'numero', 'fecha', 'proveedor', 'notas', 'factura', 'factura_url', 'compras', 
                   'costo_total', 'cantidad_productos', 'fecha_registro']
         read_only_fields = ['id', 'numero', 'fecha_registro']
+
+    def get_factura_url(self, obj):
+        if obj.factura:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.factura.url)
+            return obj.factura.url
+        return None
     
     def get_numero(self, obj):
         """Calcula dinámicamente el número basado en la fecha"""
@@ -80,12 +91,37 @@ class CompraPadreCreateUpdateSerializer(serializers.ModelSerializer):
     costo_total = serializers.ReadOnlyField()
     cantidad_productos = serializers.ReadOnlyField()
     numero = serializers.SerializerMethodField()
+    factura = serializers.FileField(required=False, allow_null=True)
+    factura_url = serializers.SerializerMethodField()
     
     class Meta:
         model = CompraPadre
-        fields = ['id', 'numero', 'fecha', 'proveedor', 'notas', 'compras_data', 'compras',
+        fields = ['id', 'numero', 'fecha', 'proveedor', 'notas', 'factura', 'factura_url', 'compras_data', 'compras',
                   'costo_total', 'cantidad_productos', 'fecha_registro']
         read_only_fields = ['id', 'numero', 'fecha_registro']
+
+    def get_factura_url(self, obj):
+        if obj.factura:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.factura.url)
+            return obj.factura.url
+        return None
+
+    def to_internal_value(self, data):
+        if isinstance(data, QueryDict):
+            data = data.dict()
+        else:
+            data = data.copy()
+
+        compras_data = data.get('compras_data')
+        if isinstance(compras_data, str):
+            try:
+                import json
+                data['compras_data'] = json.loads(compras_data)
+            except (ValueError, TypeError):
+                pass
+        return super().to_internal_value(data)
     
     def get_numero(self, obj):
         """Calcula dinámicamente el número basado en la fecha"""

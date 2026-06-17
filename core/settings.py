@@ -84,21 +84,34 @@ def resolve_postgres_host(hostname):
     return hostname
 
 DB_HOST = os.getenv('DB_HOST', 'localhost')
+DB_PORT = int(os.getenv('DB_PORT', 5432))
+DB_NAME = os.getenv('DB_NAME', 'postgres')
+DB_USER = os.getenv('DB_USER', 'postgres')
+DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+DB_PROJECT = os.getenv('DB_PROJECT', '')
+DB_OPTIONS = os.getenv('DB_OPTIONS', '').strip()
+
 DB_RESOLVED_HOST = resolve_postgres_host(DB_HOST)
+
+options = {
+    'connect_timeout': 10,
+    'sslmode': 'require' if not DEBUG else 'prefer',
+}
+if DB_OPTIONS:
+    options['options'] = DB_OPTIONS
+elif DB_PROJECT:
+    options['options'] = f'-c project={DB_PROJECT}'
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'HOST': DB_RESOLVED_HOST,
-        'PORT': int(os.getenv('DB_PORT', 5432)),
-        'NAME': os.getenv('DB_NAME', 'postgres'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'PORT': DB_PORT,
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
         'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'connect_timeout': 10,
-            'sslmode': 'require' if not DEBUG else 'prefer',
-        }
+        'OPTIONS': options,
     }
 }
 

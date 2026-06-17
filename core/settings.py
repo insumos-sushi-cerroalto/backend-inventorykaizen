@@ -81,6 +81,12 @@ DATABASES = {
     )
 }
 
+# Forzar el paso del Tenant ID directamente en las opciones de conexión de psycopg2
+if not DEBUG:
+    DATABASES['default']['OPTIONS'] = {
+        'options': '-c application_name=yxefkvsfkoamtkmyrbob'
+    }
+
 # Configuración obligatoria para el pooler de Supabase en producción
 if not DEBUG:
     DATABASES['default']['OPTIONS'] = {

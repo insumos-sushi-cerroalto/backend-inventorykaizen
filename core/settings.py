@@ -81,13 +81,11 @@ DATABASES = {
     )
 }
 
-# Forzar el paso del Tenant ID directamente en las opciones de conexión de psycopg2
+# Configuración limpia y oficial para Supavisor en Render
 if not DEBUG:
     DATABASES['default']['OPTIONS'] = {
-        'options': '-c application_name=yxefkvsfkoamtkmyrbob'
+        'options': '-c project=yxefkvsfkoamtkmyrbob'
     }
-
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

@@ -91,6 +91,13 @@ DB_PASSWORD = os.getenv('DB_PASSWORD', '')
 DB_PROJECT = os.getenv('DB_PROJECT', '')
 DB_OPTIONS = os.getenv('DB_OPTIONS', '').strip()
 
+if 'pooler.supabase.com' in os.getenv('DB_HOST', '') and DB_USER.startswith('postgres.'):
+    # When using Supabase pooler, the username is often postgres.<project_id>.
+    # Convert it back to postgres and use project option for tenant routing.
+    project_candidate = DB_USER.split('.', 1)[1]
+    DB_PROJECT = DB_PROJECT or project_candidate
+    DB_USER = 'postgres'
+
 DB_RESOLVED_HOST = resolve_postgres_host(DB_HOST)
 
 options = {
@@ -101,10 +108,6 @@ if DB_OPTIONS:
     options['options'] = DB_OPTIONS
 elif DB_PROJECT:
     options['options'] = f'-c project={DB_PROJECT}'
-elif 'pooler.supabase.com' in DB_HOST and '.' in DB_USER:
-    # Fallback: derive project from username form postgres.<project_id>
-    project_candidate = DB_USER.split('.', 1)[1]
-    options['options'] = f'-c project={project_candidate}'
 
 DATABASES = {
     'default': {

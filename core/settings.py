@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import timedelta
 import os
+import socket
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
@@ -72,10 +73,24 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+def resolve_postgres_host(hostname):
+    """Force IPv4 resolution for Supabase hostnames when IPv6 is not reachable."""
+    try:
+        # Use socket.getaddrinfo to resolve and pick an IPv4 address if available.
+        for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None):
+            if family == socket.AF_INET:
+                return sockaddr[0]
+    except OSError:
+        pass
+    return hostname
+
+DB_HOST = os.getenv('DB_HOST', 'localhost')
+DB_RESOLVED_HOST = resolve_postgres_host(DB_HOST)
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'HOST': DB_RESOLVED_HOST,
         'PORT': int(os.getenv('DB_PORT', 5432)),
         'NAME': os.getenv('DB_NAME', 'postgres'),
         'USER': os.getenv('DB_USER', 'postgres'),

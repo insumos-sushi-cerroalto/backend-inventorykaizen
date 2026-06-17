@@ -77,10 +77,15 @@ DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv("DATABASE_URL"),
         conn_max_age=600,
-        # Solo requiere SSL si NO estás en modo DEBUG (o sea, en producción)
-        ssl_require=not DEBUG 
+        ssl_require=not DEBUG
     )
 }
+
+# Si estamos en producción (no DEBUG), forzamos al pooler a reconocer el proyecto mediante las opciones
+if not DEBUG:
+    DATABASES['default']['OPTIONS'] = {
+        'options': '-c project=yxefkvsfkoamtkmyrbob'
+    }
 
 
 # Password validation

@@ -101,6 +101,10 @@ if DB_OPTIONS:
     options['options'] = DB_OPTIONS
 elif DB_PROJECT:
     options['options'] = f'-c project={DB_PROJECT}'
+elif 'pooler.supabase.com' in DB_HOST and '.' in DB_USER:
+    # Fallback: derive project from username form postgres.<project_id>
+    project_candidate = DB_USER.split('.', 1)[1]
+    options['options'] = f'-c project={project_candidate}'
 
 DATABASES = {
     'default': {

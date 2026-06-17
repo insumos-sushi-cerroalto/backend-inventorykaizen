@@ -84,7 +84,17 @@ DATABASES = {
 # Configuración limpia y oficial para Supavisor en Render
 if not DEBUG:
     DATABASES['default']['OPTIONS'] = {
-        'options': '-c project=yxefkvsfkoamtkmyrbob'
+        'options': '-c project=yxefkvsfkoamtkmyrbob',
+        'sslmode': 'require'
+    }
+else:
+    # Forzar IPv4 en desarrollo para evitar problemas con Supabase
+    DATABASES['default']['OPTIONS'] = {
+        'connect_timeout': 10,
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
     }
 
 # Password validation

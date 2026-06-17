@@ -1,4 +1,4 @@
-#inventory\serializers.py
+#backend-inventorykaizen\inventory\serializers.py
 from django.http import QueryDict
 from rest_framework import serializers
 from .models import Producto, Compra, CompraPadre, Venta

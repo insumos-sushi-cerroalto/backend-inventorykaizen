@@ -77,16 +77,10 @@ DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv("DATABASE_URL"),
         conn_max_age=600,
-        ssl_require=not DEBUG
+        ssl_require=not DEBUG 
     )
 }
 
-# Configuración obligatoria para el pooler de Supabase en producción
-if not DEBUG:
-    DATABASES['default']['OPTIONS'] = {
-        # Pasamos el ID del proyecto como el application_name para que el proxy sepa a dónde redirigir
-        'options': '-c application_name=yxefkvsfkoamtkmyrbob'
-    }
 
 
 # Password validation

@@ -76,10 +76,9 @@ WSGI_APPLICATION = 'core.wsgi.application'
 def resolve_postgres_host(hostname):
     """Force IPv4 resolution for Supabase hostnames when IPv6 is not reachable."""
     try:
-        # Use socket.getaddrinfo to resolve and pick an IPv4 address if available.
-        for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None):
-            if family == socket.AF_INET:
-                return sockaddr[0]
+        addrinfos = socket.getaddrinfo(hostname, None, family=socket.AF_INET, type=socket.SOCK_STREAM)
+        if addrinfos:
+            return addrinfos[0][4][0]
     except OSError:
         pass
     return hostname

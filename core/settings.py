@@ -91,14 +91,16 @@ DB_PASSWORD = os.getenv('DB_PASSWORD', '')
 DB_PROJECT = os.getenv('DB_PROJECT', '')
 DB_OPTIONS = os.getenv('DB_OPTIONS', '').strip()
 
-if 'pooler.supabase.com' in os.getenv('DB_HOST', '') and DB_USER.startswith('postgres.'):
+if 'pooler.supabase.com' in DB_HOST and DB_USER.startswith('postgres.'):
     # When using Supabase pooler, the username is often postgres.<project_id>.
-    # Convert it back to postgres and use project option for tenant routing.
     project_candidate = DB_USER.split('.', 1)[1]
     DB_PROJECT = DB_PROJECT or project_candidate
     DB_USER = 'postgres'
 
 DB_RESOLVED_HOST = resolve_postgres_host(DB_HOST)
+DB_CONN_PARAMS = {}
+if DB_RESOLVED_HOST != DB_HOST:
+    DB_CONN_PARAMS['HOSTADDR'] = DB_RESOLVED_HOST
 
 options = {
     'connect_timeout': 10,
@@ -109,16 +111,30 @@ if DB_OPTIONS:
 elif DB_PROJECT:
     options['options'] = f'-c project={DB_PROJECT}'
 
+if not DEBUG:
+    print('DB CONFIG:', {
+        'DB_HOST': DB_HOST,
+        'DB_RESOLVED_HOST': DB_RESOLVED_HOST,
+        'DB_CONN_PARAMS': DB_CONN_PARAMS,
+        'DB_PORT': DB_PORT,
+        'DB_NAME': DB_NAME,
+        'DB_USER': DB_USER,
+        'DB_PROJECT': DB_PROJECT,
+        'DB_OPTIONS': DB_OPTIONS,
+        'OPTIONS': options,
+    })
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'HOST': DB_RESOLVED_HOST,
+        'HOST': DB_HOST,
         'PORT': DB_PORT,
         'NAME': DB_NAME,
         'USER': DB_USER,
         'PASSWORD': DB_PASSWORD,
         'CONN_MAX_AGE': 600,
         'OPTIONS': options,
+        **DB_CONN_PARAMS,
     }
 }
 

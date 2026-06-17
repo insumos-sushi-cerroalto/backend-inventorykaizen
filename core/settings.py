@@ -99,7 +99,8 @@ if 'pooler.supabase.com' in DB_HOST and DB_USER.startswith('postgres.'):
 
 DB_RESOLVED_HOST = resolve_postgres_host(DB_HOST)
 DB_CONN_PARAMS = {}
-if DB_RESOLVED_HOST != DB_HOST:
+use_hostaddr = DB_RESOLVED_HOST != DB_HOST and 'pooler.supabase.com' not in DB_HOST
+if use_hostaddr:
     DB_CONN_PARAMS['HOSTADDR'] = DB_RESOLVED_HOST
 
 options = {

@@ -81,10 +81,11 @@ DATABASES = {
     )
 }
 
-# Si estamos en producción (no DEBUG), forzamos al pooler a reconocer el proyecto mediante las opciones
+# Configuración obligatoria para el pooler de Supabase en producción
 if not DEBUG:
     DATABASES['default']['OPTIONS'] = {
-        'options': '-c project=yxefkvsfkoamtkmyrbob'
+        # Pasamos el ID del proyecto como el application_name para que el proxy sepa a dónde redirigir
+        'options': '-c application_name=yxefkvsfkoamtkmyrbob'
     }
 
 

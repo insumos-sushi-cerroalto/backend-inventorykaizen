@@ -1,5 +1,4 @@
 from pathlib import Path
-import dj_database_url
 from datetime import timedelta
 import os
 import cloudinary
@@ -74,28 +73,20 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.getenv("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=not DEBUG 
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': int(os.getenv('DB_PORT', 5432)),
+        'NAME': os.getenv('DB_NAME', 'postgres'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'connect_timeout': 10,
+            'sslmode': 'require' if not DEBUG else 'prefer',
+        }
+    }
 }
-
-# Configuración limpia y oficial para Supavisor en Render
-if not DEBUG:
-    DATABASES['default']['OPTIONS'] = {
-        'options': '-c project=yxefkvsfkoamtkmyrbob',
-        'sslmode': 'require'
-    }
-else:
-    # Forzar IPv4 en desarrollo para evitar problemas con Supabase
-    DATABASES['default']['OPTIONS'] = {
-        'connect_timeout': 10,
-        'keepalives': 1,
-        'keepalives_idle': 30,
-        'keepalives_interval': 10,
-        'keepalives_count': 5,
-    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

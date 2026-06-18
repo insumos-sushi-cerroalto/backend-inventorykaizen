@@ -71,7 +71,8 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+import os
+import socket
 
 def resolve_postgres_host(hostname):
     """Force IPv4 resolution for Supabase hostnames when IPv6 is not reachable."""
@@ -83,48 +84,41 @@ def resolve_postgres_host(hostname):
         pass
     return hostname
 
+# 1. Carga limpia de variables de entorno
 DB_HOST = os.getenv('DB_HOST', 'localhost').strip()
 DB_PORT = int(os.getenv('DB_PORT', 5432))
 DB_NAME = os.getenv('DB_NAME', 'postgres').strip()
 DB_USER = os.getenv('DB_USER', 'postgres').strip()
 DB_PASSWORD = os.getenv('DB_PASSWORD', '')
-DB_PROJECT = os.getenv('DB_PROJECT', '').strip()
-DB_OPTIONS = os.getenv('DB_OPTIONS', '').strip()
 
-# Supabase pooler uses either external_id in the username or SNI routing.
-# For the generic pooler host, keep the original postgres.<project> user.
+# 2. Extraer el ID del proyecto automáticamente desde el usuario postgres.ID
+DB_PROJECT = ''
+if '.' in DB_USER:
+    DB_PROJECT = DB_USER.split('.', 1)[1]
+
 DB_HOSTNAME = DB_HOST
-if 'pooler.supabase.com' in DB_HOSTNAME and DB_USER.startswith('postgres.'):
-    project_candidate = DB_USER.split('.', 1)[1]
-    DB_PROJECT = DB_PROJECT or project_candidate
-
 DB_RESOLVED_HOST = resolve_postgres_host(DB_HOSTNAME)
-DB_HOSTADDR = None
-if DB_RESOLVED_HOST != DB_HOSTNAME and 'pooler.supabase.com' not in DB_HOSTNAME:
-    DB_HOSTADDR = DB_RESOLVED_HOST
 
+# 3. Configuración estricta de opciones para Supabase Pooler
 options = {
     'connect_timeout': 10,
     'sslmode': 'require' if not DEBUG else 'prefer',
 }
-if DB_HOSTADDR:
-    options['hostaddr'] = DB_HOSTADDR
-if DB_OPTIONS:
-    options['options'] = DB_OPTIONS
-elif DB_PROJECT and 'pooler.supabase.com' not in DB_HOSTNAME:
+
+# Forzar el ID del proyecto en las opciones (CRÍTICO para que Supavisor funcione)
+if DB_PROJECT:
     options['options'] = f'-c project={DB_PROJECT}'
 
+if DB_RESOLVED_HOST != DB_HOSTNAME:
+    options['hostaddr'] = DB_RESOLVED_HOST
+
+# Imprimir en consola de Render para verificar que todo viaje correcto
 if not DEBUG:
-    print('DB CONFIG:', {
-        'DB_HOST': DB_HOST,
-        'DB_HOSTNAME': DB_HOSTNAME,
-        'DB_RESOLVED_HOST': DB_RESOLVED_HOST,
-        'DB_HOSTADDR': DB_HOSTADDR,
-        'DB_PORT': DB_PORT,
-        'DB_NAME': DB_NAME,
-        'DB_USER': DB_USER,
-        'DB_PROJECT': DB_PROJECT,
-        'DB_OPTIONS': DB_OPTIONS,
+    print('DB CONFIG FIX:', {
+        'HOST': DB_HOSTNAME,
+        'PORT': DB_PORT,
+        'NAME': DB_NAME,
+        'USER': DB_USER,
         'OPTIONS': options,
     })
 

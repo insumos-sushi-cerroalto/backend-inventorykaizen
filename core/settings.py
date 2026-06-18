@@ -106,15 +106,16 @@ if 'pooler.supabase.com' in DB_HOSTNAME:
             DB_HOSTNAME = f'{tenant_host_prefix}.{DB_HOSTNAME}'
 
 DB_RESOLVED_HOST = resolve_postgres_host(DB_HOST)
-DB_CONN_PARAMS = {}
-use_hostaddr = DB_HOSTNAME != DB_HOST or DB_RESOLVED_HOST != DB_HOST
-if use_hostaddr:
-    DB_CONN_PARAMS['HOSTADDR'] = DB_RESOLVED_HOST
+DB_HOSTADDR = None
+if 'pooler.supabase.com' in DB_HOST and DB_HOSTNAME != DB_HOST:
+    DB_HOSTADDR = DB_RESOLVED_HOST
 
 options = {
     'connect_timeout': 10,
     'sslmode': 'require' if not DEBUG else 'prefer',
 }
+if DB_HOSTADDR:
+    options['hostaddr'] = DB_HOSTADDR
 if DB_OPTIONS:
     options['options'] = DB_OPTIONS
 elif DB_PROJECT:
@@ -125,7 +126,7 @@ if not DEBUG:
         'DB_HOST': DB_HOST,
         'DB_HOSTNAME': DB_HOSTNAME,
         'DB_RESOLVED_HOST': DB_RESOLVED_HOST,
-        'DB_CONN_PARAMS': DB_CONN_PARAMS,
+        'DB_HOSTADDR': DB_HOSTADDR,
         'DB_PORT': DB_PORT,
         'DB_NAME': DB_NAME,
         'DB_USER': DB_USER,
@@ -144,7 +145,6 @@ DATABASES = {
         'PASSWORD': DB_PASSWORD,
         'CONN_MAX_AGE': 600,
         'OPTIONS': options,
-        **DB_CONN_PARAMS,
     }
 }
 

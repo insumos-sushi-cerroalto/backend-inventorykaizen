@@ -91,23 +91,16 @@ DB_PASSWORD = os.getenv('DB_PASSWORD', '')
 DB_PROJECT = os.getenv('DB_PROJECT', '').strip()
 DB_OPTIONS = os.getenv('DB_OPTIONS', '').strip()
 
-# Supabase pooler requires a tenant identifier by SNI or external_id.
-# Use the generic pooler host for connection IP and a tenant-specific host for SNI.
+# Supabase pooler uses either external_id in the username or SNI routing.
+# For the generic pooler host, keep the original postgres.<project> user.
 DB_HOSTNAME = DB_HOST
-if 'pooler.supabase.com' in DB_HOSTNAME:
-    if DB_USER.startswith('postgres.'):
-        project_candidate = DB_USER.split('.', 1)[1]
-        DB_PROJECT = DB_PROJECT or project_candidate
-        DB_USER = 'postgres'
+if 'pooler.supabase.com' in DB_HOSTNAME and DB_USER.startswith('postgres.'):
+    project_candidate = DB_USER.split('.', 1)[1]
+    DB_PROJECT = DB_PROJECT or project_candidate
 
-    if DB_PROJECT:
-        tenant_host_prefix = f'postgres.{DB_PROJECT}'
-        if not DB_HOSTNAME.startswith(f'{tenant_host_prefix}.'):
-            DB_HOSTNAME = f'{tenant_host_prefix}.{DB_HOSTNAME}'
-
-DB_RESOLVED_HOST = resolve_postgres_host(DB_HOST)
+DB_RESOLVED_HOST = resolve_postgres_host(DB_HOSTNAME)
 DB_HOSTADDR = None
-if 'pooler.supabase.com' in DB_HOST and DB_HOSTNAME != DB_HOST:
+if DB_RESOLVED_HOST != DB_HOSTNAME and 'pooler.supabase.com' not in DB_HOSTNAME:
     DB_HOSTADDR = DB_RESOLVED_HOST
 
 options = {
@@ -118,7 +111,7 @@ if DB_HOSTADDR:
     options['hostaddr'] = DB_HOSTADDR
 if DB_OPTIONS:
     options['options'] = DB_OPTIONS
-elif DB_PROJECT:
+elif DB_PROJECT and 'pooler.supabase.com' not in DB_HOSTNAME:
     options['options'] = f'-c project={DB_PROJECT}'
 
 if not DEBUG:

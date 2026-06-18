@@ -123,6 +123,7 @@ elif DB_PROJECT:
 if not DEBUG:
     print('DB CONFIG:', {
         'DB_HOST': DB_HOST,
+        'DB_HOSTNAME': DB_HOSTNAME,
         'DB_RESOLVED_HOST': DB_RESOLVED_HOST,
         'DB_CONN_PARAMS': DB_CONN_PARAMS,
         'DB_PORT': DB_PORT,
@@ -136,7 +137,7 @@ if not DEBUG:
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'HOST': DB_HOST,
+        'HOST': DB_HOSTNAME,
         'PORT': DB_PORT,
         'NAME': DB_NAME,
         'USER': DB_USER,

@@ -92,7 +92,7 @@ DB_PROJECT = os.getenv('DB_PROJECT', '').strip()
 DB_OPTIONS = os.getenv('DB_OPTIONS', '').strip()
 
 # Supabase pooler requires a tenant identifier by SNI or external_id.
-# If the pooler hostname is generic, derive a tenant-specific SNI host.
+# Use the generic pooler host for connection IP and a tenant-specific host for SNI.
 DB_HOSTNAME = DB_HOST
 if 'pooler.supabase.com' in DB_HOSTNAME:
     if DB_USER.startswith('postgres.'):
@@ -105,9 +105,9 @@ if 'pooler.supabase.com' in DB_HOSTNAME:
         if not DB_HOSTNAME.startswith(f'{tenant_host_prefix}.'):
             DB_HOSTNAME = f'{tenant_host_prefix}.{DB_HOSTNAME}'
 
-DB_RESOLVED_HOST = resolve_postgres_host(DB_HOSTNAME)
+DB_RESOLVED_HOST = resolve_postgres_host(DB_HOST)
 DB_CONN_PARAMS = {}
-use_hostaddr = DB_RESOLVED_HOST != DB_HOSTNAME and 'pooler.supabase.com' not in DB_HOSTNAME
+use_hostaddr = DB_HOSTNAME != DB_HOST or DB_RESOLVED_HOST != DB_HOST
 if use_hostaddr:
     DB_CONN_PARAMS['HOSTADDR'] = DB_RESOLVED_HOST
 

@@ -84,56 +84,70 @@ def resolve_postgres_host(hostname):
         pass
     return hostname
 
-# 1. Carga limpia de variables de entorno
-DB_HOST = os.getenv('DB_HOST', 'localhost').strip()
-DB_PORT = int(os.getenv('DB_PORT', 5432))
-DB_NAME = os.getenv('DB_NAME', 'postgres').strip()
-DB_USER = os.getenv('DB_USER', 'postgres').strip()
-DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+USE_SQLITE = os.getenv('USE_SQLITE', 'True' if DEBUG else 'False').strip().lower() in ('1', 'true', 'yes')
+DB_SQLITE_PATH = Path(os.getenv('DB_SQLITE_PATH', BASE_DIR / 'db.sqlite3'))
 
-# 2. Extraer el ID del proyecto automáticamente desde el usuario postgres.ID
-DB_PROJECT = ''
-if '.' in DB_USER:
-    DB_PROJECT = DB_USER.split('.', 1)[1]
+if USE_SQLITE:
+    if not DEBUG:
+        print('DB CONFIG SQLITE:', {'DB_SQLITE_PATH': str(DB_SQLITE_PATH)})
 
-DB_HOSTNAME = DB_HOST
-DB_RESOLVED_HOST = resolve_postgres_host(DB_HOSTNAME)
-
-# 3. Configuración estricta de opciones para Supabase Pooler
-options = {
-    'connect_timeout': 10,
-    'sslmode': 'require' if not DEBUG else 'prefer',
-}
-
-# Forzar el ID del proyecto en las opciones (CRÍTICO para que Supavisor funcione)
-if DB_PROJECT:
-    options['options'] = f'-c project={DB_PROJECT}'
-
-if DB_RESOLVED_HOST != DB_HOSTNAME:
-    options['hostaddr'] = DB_RESOLVED_HOST
-
-# Imprimir en consola de Render para verificar que todo viaje correcto
-if not DEBUG:
-    print('DB CONFIG FIX:', {
-        'HOST': DB_HOSTNAME,
-        'PORT': DB_PORT,
-        'NAME': DB_NAME,
-        'USER': DB_USER,
-        'OPTIONS': options,
-    })
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'HOST': DB_HOSTNAME,
-        'PORT': DB_PORT,
-        'NAME': DB_NAME,
-        'USER': DB_USER,
-        'PASSWORD': DB_PASSWORD,
-        'CONN_MAX_AGE': 600,
-        'OPTIONS': options,
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': str(DB_SQLITE_PATH),
+        }
     }
-}
+else:
+    # 1. Carga limpia de variables de entorno
+    DB_HOST = os.getenv('DB_HOST', 'localhost').strip()
+    DB_PORT = int(os.getenv('DB_PORT', 5432))
+    DB_NAME = os.getenv('DB_NAME', 'postgres').strip()
+    DB_USER = os.getenv('DB_USER', 'postgres').strip()
+    DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+
+    # 2. Extraer el ID del proyecto automáticamente desde el usuario postgres.ID
+    DB_PROJECT = ''
+    if '.' in DB_USER:
+        DB_PROJECT = DB_USER.split('.', 1)[1]
+
+    DB_HOSTNAME = DB_HOST
+    DB_RESOLVED_HOST = resolve_postgres_host(DB_HOSTNAME)
+
+    # 3. Configuración estricta de opciones para Supabase Pooler
+    options = {
+        'connect_timeout': 10,
+        'sslmode': 'require' if not DEBUG else 'prefer',
+    }
+
+    # Forzar el ID del proyecto en las opciones (CRÍTICO para que Supavisor funcione)
+    if DB_PROJECT:
+        options['options'] = f'-c project={DB_PROJECT}'
+
+    if DB_RESOLVED_HOST != DB_HOSTNAME:
+        options['hostaddr'] = DB_RESOLVED_HOST
+
+    # Imprimir en consola de Render para verificar que todo viaje correcto
+    if not DEBUG:
+        print('DB CONFIG FIX:', {
+            'HOST': DB_HOSTNAME,
+            'PORT': DB_PORT,
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'OPTIONS': options,
+        })
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'HOST': DB_HOSTNAME,
+            'PORT': DB_PORT,
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': options,
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

@@ -8,6 +8,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.permissions import IsAuthenticated
 from decimal import Decimal
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper
+from django.db.models import Q
 from django.db.models.functions import Coalesce
 from datetime import datetime, timedelta
 from .models import Producto, Compra, CompraPadre, Venta
@@ -343,41 +344,49 @@ class InventarioViewSet(viewsets.GenericViewSet):
     
     def get_queryset(self):
         """Filtrar productos por usuario autenticado"""
-        return Producto.objects.filter(user=self.request.user)
+        return Producto.objects.filter(
+            user=self.request.user,
+            producto_base__isnull=True
+        )
     
     def list(self, request):
         productos = self.get_queryset()
         inventario = []
-        
-        for producto in productos:
-            total_compras = producto.compras.aggregate(
-                total=Coalesce(
-                    Sum('cantidad'),
-                    Decimal('0.00'),
-                    output_field=DecimalField()
-                )
-            )['total']
 
-            total_ventas = producto.ventas.aggregate(
-                total=Coalesce(
-                    Sum('cantidad'),
-                    Decimal('0.00'),
-                    output_field=DecimalField()
-                )
-            )['total']
-            
-            stock = total_compras - total_ventas
-            
+        for producto in productos:
+            productos_relacionados = Producto.objects.filter(
+                Q(id=producto.id) | Q(producto_base=producto),
+                user=request.user
+            )
+
+            total_compras = sum(
+                compra.cantidad * compra.producto.factor_conversion
+                for compra in Compra.objects.filter(
+                    user=request.user,
+                    producto__in=productos_relacionados
+                ).select_related('producto')
+            )
+
+            total_ventas = sum(
+                venta.cantidad * venta.producto.factor_conversion
+                for venta in Venta.objects.filter(
+                    user=request.user,
+                    producto__in=productos_relacionados
+                ).select_related('producto')
+            )
+
             inventario.append({
                 'producto_id': producto.id,
                 'producto_nombre': producto.nombre,
                 'producto_imagen': producto.imagen.url if producto.imagen else None,
                 'unidad_medida': producto.unidad_medida,
-                'stock_actual': stock,
+                'marca': producto.marca,
+                'categoria': producto.categoria,
+                'stock_actual': total_compras - total_ventas,
                 'total_compras': total_compras,
-                'total_ventas': total_ventas
+                'total_ventas': total_ventas,
             })
-        
+
         serializer = InventarioSerializer(inventario, many=True)
         return Response(serializer.data)
     

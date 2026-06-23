@@ -6,20 +6,23 @@ from .models import Producto, Compra, CompraPadre, Venta
 class ProductoSerializer(serializers.ModelSerializer):
     stock_actual = serializers.ReadOnlyField()
     precio_unitario = serializers.IntegerField(required=False, allow_null=True, min_value=1)
-    
+    producto_base_nombre = serializers.CharField(source='producto_base.nombre', read_only=True)
+
     class Meta:
         model = Producto
-        fields = ['id', 'id_producto', 'nombre', 'imagen', 'unidad_medida', 'descripcion', 
-                  'precio_unitario', 'fecha_creacion', 'stock_actual']
+        fields = [
+            'id', 'id_producto', 'nombre', 'imagen', 'unidad_medida',
+            'descripcion', 'precio_unitario', 'marca', 'categoria',
+            'producto_base', 'producto_base_nombre', 'factor_conversion',
+            'fecha_creacion', 'stock_actual'
+        ]
         read_only_fields = ['fecha_creacion', 'id_producto']
-    
-    def to_internal_value(self, data):
-        # Si imagen es string vacío, setear None
-        if 'imagen' in data and data['imagen'] == '':
-            data['imagen'] = None
-        if 'precio_unitario' in data and data['precio_unitario'] == '':
-            data['precio_unitario'] = None
-        return super().to_internal_value(data)
+
+    def validate_producto_base(self, value):
+        request = self.context.get('request')
+        if value and request and value.user != request.user:
+            raise serializers.ValidationError('El producto base no pertenece al usuario autenticado.')
+        return value
 
 
 class CompraSerializer(serializers.ModelSerializer):
@@ -220,6 +223,8 @@ class InventarioSerializer(serializers.Serializer):
     producto_nombre = serializers.CharField()
     producto_imagen = serializers.URLField(allow_null=True)
     unidad_medida = serializers.CharField()
+    marca = serializers.CharField(allow_blank=True)
+    categoria = serializers.CharField(allow_blank=True)
     stock_actual = serializers.IntegerField()
     total_compras = serializers.IntegerField()
     total_ventas = serializers.IntegerField()

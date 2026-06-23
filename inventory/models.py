@@ -4,7 +4,7 @@ from django.core.validators import MinValueValidator
 from django.db.models import Q
 from django.contrib.auth.models import User
 
-class Producto(models.Model):
+class Producto(models.Model): 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='productos')
     id_producto = models.IntegerField(null=True, blank=True, editable=False)
     nombre = models.CharField(max_length=200)
@@ -13,7 +13,23 @@ class Producto(models.Model):
     descripcion = models.TextField(blank=True)
     precio_unitario = models.IntegerField(validators=[MinValueValidator(1)], null=True, blank=True, default=None)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    marca = models.CharField(max_length=100, blank=True)
+    categoria = models.CharField(max_length=100, blank=True)
     
+    producto_base = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        related_name='presentaciones',
+        null=True,
+        blank=True
+    )
+
+    factor_conversion = models.PositiveIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        help_text='Cantidad de unidades base que representa este producto/presentación.'
+    )
+
     def save(self, *args, **kwargs):
         if self.id_producto is None:
             # Encontrar el primer número disponible para este usuario
@@ -88,15 +104,33 @@ class Producto(models.Model):
         return self.nombre
     
     @property
+    def producto_inventario(self):
+        return self.producto_base or self
+
+    @property
     def stock_actual(self):
-        total_compras = self.compras.aggregate(
-            total=models.Sum('cantidad')
-        )['total'] or 0
-        
-        total_ventas = self.ventas.aggregate(
-            total=models.Sum('cantidad')
-        )['total'] or 0
-        
+        producto_base = self.producto_inventario
+        productos_relacionados = Producto.objects.filter(
+            Q(id=producto_base.id) | Q(producto_base=producto_base),
+            user=self.user
+        )
+
+        total_compras = sum(
+            compra.cantidad * compra.producto.factor_conversion
+            for compra in Compra.objects.filter(
+                user=self.user,
+                producto__in=productos_relacionados
+            ).select_related('producto')
+        )
+
+        total_ventas = sum(
+            venta.cantidad * venta.producto.factor_conversion
+            for venta in Venta.objects.filter(
+                user=self.user,
+                producto__in=productos_relacionados
+            ).select_related('producto')
+        )
+
         return total_compras - total_ventas
 
 # Modelo CompraPadre para agrupar múltiples compras
@@ -196,7 +230,7 @@ class Venta(models.Model):
     canal_venta = models.CharField(max_length=20, choices=CANALES, default='local')
     cliente = models.CharField(max_length=200)
     metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO, default='efectivo')
-    cantidad = models.IntegerField(validators=[MinValueValidator(1)])
+    cantidad = models.IntegerField(default=1, validators=[MinValueValidator(1)])
     precio_unitario = models.IntegerField(validators=[MinValueValidator(1)])
     pagado = models.BooleanField(default=True)
     notas = models.TextField(blank=True)

@@ -3,6 +3,7 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from django.db.models import Q
 from django.contrib.auth.models import User
+from cloudinary_storage.storage import RawCloudinaryStorage
 
 class Producto(models.Model): 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='productos')
@@ -141,7 +142,12 @@ class CompraPadre(models.Model):
     fecha = models.DateField()
     proveedor = models.CharField(max_length=200)
     notas = models.TextField(blank=True)
-    factura = models.FileField(upload_to='facturas/', null=True, blank=True)
+    factura = models.FileField(
+        upload_to='facturas/', 
+        storage=RawCloudinaryStorage(), # <--- ESTO OBLIGA A CLOUDINARY A TRATARLO COMO PDF/RAW
+        blank=True, 
+        null=True
+    )   
     fecha_registro = models.DateTimeField(auto_now_add=True)
     
     def save(self, *args, **kwargs):

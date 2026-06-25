@@ -244,6 +244,14 @@ cloudinary.config(
     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
 )
 
+# Configuración para que django-cloudinary-storage detecte PDFs correctamente
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv("CLOUDINARY_CLOUD_NAME"),
+    'API_KEY': os.getenv("CLOUDINARY_API_KEY"),
+    'API_SECRET': os.getenv("CLOUDINARY_API_SECRET"),
+    'RESOURCE_TYPE': 'auto',  # <--- ESTA ES LA CLAVE PARA LOS PDFs
+}
+
 # Cloudinary Storage
 STORAGES = {
     "default": {

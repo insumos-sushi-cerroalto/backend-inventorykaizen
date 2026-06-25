@@ -72,7 +72,12 @@ class CompraPadreSerializer(serializers.ModelSerializer):
 
     def get_factura_url(self, obj):
         if obj.factura:
-            return obj.factura.url  # Cloudinary ya entrega la URL absoluta completa
+            # Si la URL contiene '/image/upload/', reemplazamos la extensión o forzamos el formato ejecutable
+            url = obj.factura.url
+            if '.pdf' not in url.lower():
+                # Esto le asegura al navegador que descargue o abra el archivo con su extensión correcta
+                return f"{url}.pdf"
+            return url
         return None
     
     def get_numero(self, obj):
@@ -102,7 +107,12 @@ class CompraPadreCreateUpdateSerializer(serializers.ModelSerializer):
 
     def get_factura_url(self, obj):
         if obj.factura:
-            return obj.factura.url  # Cloudinary ya entrega la URL absoluta completa
+            # Si la URL contiene '/image/upload/', reemplazamos la extensión o forzamos el formato ejecutable
+            url = obj.factura.url
+            if '.pdf' not in url.lower():
+                # Esto le asegura al navegador que descargue o abra el archivo con su extensión correcta
+                return f"{url}.pdf"
+            return url
         return None
 
     def to_internal_value(self, data):

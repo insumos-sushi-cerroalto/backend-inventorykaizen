@@ -72,10 +72,7 @@ class CompraPadreSerializer(serializers.ModelSerializer):
 
     def get_factura_url(self, obj):
         if obj.factura:
-            request = self.context.get('request')
-            if request is not None:
-                return request.build_absolute_uri(obj.factura.url)
-            return obj.factura.url
+            return obj.factura.url  # Cloudinary ya entrega la URL absoluta completa
         return None
     
     def get_numero(self, obj):
@@ -105,10 +102,7 @@ class CompraPadreCreateUpdateSerializer(serializers.ModelSerializer):
 
     def get_factura_url(self, obj):
         if obj.factura:
-            request = self.context.get('request')
-            if request is not None:
-                return request.build_absolute_uri(obj.factura.url)
-            return obj.factura.url
+            return obj.factura.url  # Cloudinary ya entrega la URL absoluta completa
         return None
 
     def to_internal_value(self, data):

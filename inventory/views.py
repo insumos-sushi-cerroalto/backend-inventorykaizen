@@ -90,6 +90,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
 class CompraViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    pagination_class = None
     queryset = Compra.objects.all()
     serializer_class = CompraSerializer
     
@@ -133,6 +134,7 @@ class CompraViewSet(viewsets.ModelViewSet):
 class CompraPadreViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar compras padre con múltiples productos"""
     permission_classes = [IsAuthenticated]
+    pagination_class = None
     parser_classes = [JSONParser, MultiPartParser, FormParser]
     queryset = CompraPadre.objects.all()
 

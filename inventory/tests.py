@@ -55,6 +55,23 @@ class FinanzasAPITests(TestCase):
         self.assertEqual(movimiento.tipo_movimiento, 'egreso')
         self.assertEqual(movimiento.monto, compra.costo_total)
 
+    def test_api_compra_devuelve_todas_las_compras_sin_paginacion(self):
+        for index in range(105):
+            Compra.objects.create(
+                user=self.user,
+                producto=self.producto,
+                fecha='2026-07-08',
+                cantidad=1,
+                costo_unitario=1000 + index,
+                valor_venta=1200 + index,
+                proveedor='Proveedor A',
+            )
+
+        response = self.client.get('/api/compras/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 105)
+
     def test_balance_y_distribucion_api(self):
         MovimientoFinanciero.objects.create(
             user=self.user,

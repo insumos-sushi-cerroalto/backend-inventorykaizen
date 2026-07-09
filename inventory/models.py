@@ -1,8 +1,11 @@
 # backend-inventorykaizen\inventory\models.py
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 from cloudinary_storage.storage import RawMediaCloudinaryStorage
 
 class Producto(models.Model): 
@@ -262,6 +265,130 @@ class Venta(models.Model):
     
     def __str__(self):
         return f"Venta #{self.numero} - {self.producto.nombre}"
+
+
+class MovimientoFinanciero(models.Model):
+    TIPOS_MOVIMIENTO = [
+        ('ingreso', 'Ingreso'),
+        ('egreso', 'Egreso'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='movimientos_financieros')
+    fecha = models.DateField()
+    tipo_movimiento = models.CharField(max_length=20, choices=TIPOS_MOVIMIENTO)
+    categoria = models.CharField(max_length=100)
+    descripcion = models.CharField(max_length=255)
+    monto = models.IntegerField(validators=[MinValueValidator(1)])
+    observaciones = models.TextField(blank=True)
+    usuario_responsable = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='movimientos_financieros_responsables',
+        null=True,
+        blank=True,
+    )
+    origen_model = models.CharField(max_length=50, blank=True, default='')
+    origen_id = models.IntegerField(null=True, blank=True)
+    es_manual = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-fecha', '-fecha_creacion']
+
+    def clean(self):
+        super().clean()
+        if self.monto is None or self.monto <= 0:
+            raise ValidationError({'monto': 'El monto debe ser mayor a cero.'})
+        if self.tipo_movimiento not in dict(self.TIPOS_MOVIMIENTO):
+            raise ValidationError({'tipo_movimiento': 'El tipo de movimiento no es válido.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.get_tipo_movimiento_display()} - {self.descripcion}"
+
+
+class CategoriaDistribucion(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='categorias_distribucion')
+    nombre = models.CharField(max_length=100)
+    porcentaje = models.IntegerField(validators=[MinValueValidator(1)])
+    descripcion = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+    orden = models.PositiveIntegerField(default=0)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['orden', 'nombre']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'nombre'], name='unique_categoria_distribucion_por_usuario')
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.porcentaje < 1 or self.porcentaje > 100:
+            raise ValidationError({'porcentaje': 'El porcentaje debe estar entre 1 y 100.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def calcular_monto(self, utilidad):
+        return int(round(utilidad * self.porcentaje / 100))
+
+    def __str__(self):
+        return self.nombre
+
+
+@receiver(post_save, sender=Venta)
+def sincronizar_movimiento_venta(sender, instance, **kwargs):
+    MovimientoFinanciero.objects.update_or_create(
+        user=instance.user,
+        origen_model='venta',
+        origen_id=instance.id,
+        defaults={
+            'fecha': instance.fecha,
+            'tipo_movimiento': 'ingreso',
+            'categoria': 'ventas',
+            'descripcion': f"Venta #{instance.numero or instance.id}",
+            'monto': instance.total,
+            'observaciones': 'Creado automáticamente desde una venta.',
+            'usuario_responsable': instance.user,
+            'es_manual': False,
+        },
+    )
+
+
+@receiver(post_delete, sender=Venta)
+def eliminar_movimiento_venta(sender, instance, **kwargs):
+    MovimientoFinanciero.objects.filter(user=instance.user, origen_model='venta', origen_id=instance.id).delete()
+
+
+@receiver(post_save, sender=Compra)
+def sincronizar_movimiento_compra(sender, instance, **kwargs):
+    MovimientoFinanciero.objects.update_or_create(
+        user=instance.user,
+        origen_model='compra',
+        origen_id=instance.id,
+        defaults={
+            'fecha': instance.fecha,
+            'tipo_movimiento': 'egreso',
+            'categoria': 'compras',
+            'descripcion': f"Compra #{instance.numero or instance.id}",
+            'monto': instance.costo_total,
+            'observaciones': 'Creado automáticamente desde una compra.',
+            'usuario_responsable': instance.user,
+            'es_manual': False,
+        },
+    )
+
+
+@receiver(post_delete, sender=Compra)
+def eliminar_movimiento_compra(sender, instance, **kwargs):
+    MovimientoFinanciero.objects.filter(user=instance.user, origen_model='compra', origen_id=instance.id).delete()
     
 ######
 # Modelo para la tienda web

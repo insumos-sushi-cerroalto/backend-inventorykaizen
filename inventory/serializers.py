@@ -1,7 +1,7 @@
 #backend-inventorykaizen\inventory\serializers.py
 from django.http import QueryDict
 from rest_framework import serializers
-from .models import Producto, Compra, CompraPadre, Venta
+from .models import Producto, Compra, CompraPadre, Venta, MovimientoFinanciero, CategoriaDistribucion
 
 class ProductoSerializer(serializers.ModelSerializer):
     stock_actual = serializers.ReadOnlyField()
@@ -215,6 +215,61 @@ class VentaSerializer(serializers.ModelSerializer):
         if request and value.user != request.user:
             raise serializers.ValidationError('El producto no pertenece al usuario autenticado.')
         return value
+
+
+class MovimientoFinancieroSerializer(serializers.ModelSerializer):
+    usuario_responsable_nombre = serializers.CharField(source='usuario_responsable.username', read_only=True, allow_null=True)
+
+    class Meta:
+        model = MovimientoFinanciero
+        fields = [
+            'id', 'fecha', 'tipo_movimiento', 'categoria', 'descripcion', 'monto',
+            'observaciones', 'usuario_responsable', 'usuario_responsable_nombre',
+            'origen_model', 'origen_id', 'es_manual', 'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ['id', 'fecha_creacion', 'fecha_actualizacion', 'usuario_responsable_nombre']
+
+    def validate(self, attrs):
+        monto = attrs.get('monto')
+        if monto is not None and monto <= 0:
+            raise serializers.ValidationError({'monto': 'El monto debe ser mayor a cero.'})
+        return attrs
+
+
+class CategoriaDistribucionSerializer(serializers.ModelSerializer):
+    monto_calculado = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CategoriaDistribucion
+        fields = ['id', 'nombre', 'porcentaje', 'descripcion', 'activo', 'orden', 'monto_calculado', 'fecha_creacion', 'fecha_actualizacion']
+        read_only_fields = ['id', 'monto_calculado', 'fecha_creacion', 'fecha_actualizacion']
+
+    def get_monto_calculado(self, obj):
+        return None
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if not request:
+            return attrs
+
+        porcentaje = attrs.get('porcentaje', getattr(self.instance, 'porcentaje', None))
+        if porcentaje is None:
+            return attrs
+
+        if porcentaje < 1 or porcentaje > 100:
+            raise serializers.ValidationError({'porcentaje': 'El porcentaje debe estar entre 1 y 100.'})
+
+        queryset = CategoriaDistribucion.objects.filter(user=request.user)
+        if self.instance:
+            queryset = queryset.exclude(id=self.instance.id)
+
+        total_actual = sum(item.porcentaje for item in queryset)
+        total_actual += porcentaje
+
+        if total_actual > 100:
+            raise serializers.ValidationError({'porcentaje': 'La suma de los porcentajes no puede superar 100%.'})
+
+        return attrs
 
 
 class InventarioSerializer(serializers.Serializer):

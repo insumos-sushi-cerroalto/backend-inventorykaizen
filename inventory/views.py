@@ -11,11 +11,12 @@ from django.db.models import Sum, F, DecimalField, ExpressionWrapper
 from django.db.models import Q
 from django.db.models.functions import Coalesce
 from datetime import datetime, timedelta
-from .models import Producto, Compra, CompraPadre, Venta
+from .models import Producto, Compra, CompraPadre, Venta, MovimientoFinanciero, CategoriaDistribucion
 from .serializers import (
     ProductoSerializer, CompraSerializer, CompraPadreSerializer, 
     CompraPadreCreateUpdateSerializer, VentaSerializer,
-    InventarioSerializer, ReporteFinancieroSerializer
+    InventarioSerializer, ReporteFinancieroSerializer,
+    MovimientoFinancieroSerializer, CategoriaDistribucionSerializer,
 )
 
 class ProductoViewSet(viewsets.ModelViewSet):
@@ -335,6 +336,92 @@ class VentaViewSet(viewsets.ModelViewSet):
             'ingresos_pagados': ventas_pagadas,
             'ingresos_pendientes': ventas_pendientes,
             'cantidad_ventas': cantidad
+        })
+
+
+class MovimientoFinancieroViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = MovimientoFinanciero.objects.all()
+    serializer_class = MovimientoFinancieroSerializer
+
+    def get_queryset(self):
+        queryset = MovimientoFinanciero.objects.filter(user=self.request.user)
+        fecha_inicio = self.request.query_params.get('fecha_inicio')
+        fecha_fin = self.request.query_params.get('fecha_fin')
+        tipo_movimiento = self.request.query_params.get('tipo_movimiento')
+        categoria = self.request.query_params.get('categoria')
+        origen_model = self.request.query_params.get('origen_model')
+
+        if fecha_inicio:
+            queryset = queryset.filter(fecha__gte=fecha_inicio)
+        if fecha_fin:
+            queryset = queryset.filter(fecha__lte=fecha_fin)
+        if tipo_movimiento:
+            queryset = queryset.filter(tipo_movimiento=tipo_movimiento)
+        if categoria:
+            queryset = queryset.filter(categoria__icontains=categoria)
+        if origen_model:
+            queryset = queryset.filter(origen_model=origen_model)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def balance(self, request):
+        movimientos = self.get_queryset()
+        total_ingresos = movimientos.filter(tipo_movimiento='ingreso').aggregate(total=Sum('monto'))['total'] or 0
+        total_egresos = movimientos.filter(tipo_movimiento='egreso').aggregate(total=Sum('monto'))['total'] or 0
+        saldo_actual = total_ingresos - total_egresos
+
+        return Response({
+            'total_ingresos': total_ingresos,
+            'total_egresos': total_egresos,
+            'saldo_actual': saldo_actual,
+            'balance_general': saldo_actual,
+        })
+
+
+class CategoriaDistribucionViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = CategoriaDistribucion.objects.all()
+    serializer_class = CategoriaDistribucionSerializer
+
+    def get_queryset(self):
+        return CategoriaDistribucion.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def calculada(self, request):
+        categorias = self.get_queryset().filter(activo=True)
+        total_porcentaje = sum(categoria.porcentaje for categoria in categorias)
+
+        if not categorias.exists():
+            return Response({'detail': 'No hay categorías de distribución configuradas.'}, status=400)
+
+        if total_porcentaje != 100:
+            return Response({'detail': 'La distribución debe sumar exactamente 100%.', 'total_porcentaje': total_porcentaje}, status=400)
+
+        utilidad = MovimientoFinanciero.objects.filter(user=request.user, tipo_movimiento='ingreso').aggregate(total=Sum('monto'))['total'] or 0
+        egresos = MovimientoFinanciero.objects.filter(user=request.user, tipo_movimiento='egreso').aggregate(total=Sum('monto'))['total'] or 0
+        utilidad_actual = utilidad - egresos
+
+        items = []
+        for categoria in categorias:
+            items.append({
+                'id': categoria.id,
+                'nombre': categoria.nombre,
+                'porcentaje': categoria.porcentaje,
+                'monto': categoria.calcular_monto(utilidad_actual),
+            })
+
+        return Response({
+            'utilidad': utilidad_actual,
+            'total_porcentaje': total_porcentaje,
+            'items': items,
         })
 
 

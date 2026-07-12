@@ -201,9 +201,9 @@ class VentaSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Venta
-        fields = ['id', 'numero', 'producto', 'producto_nombre', 'fecha', 'canal_venta', 
-                  'cliente', 'metodo_pago', 'cantidad', 'precio_unitario', 
-                  'total', 'pagado', 'notas', 'fecha_registro']
+        fields = ['id', 'numero', 'producto', 'producto_nombre', 'fecha',
+                  'cliente', 'metodo_pago', 'cantidad', 'precio_unitario',
+                  'total', 'pagado', 'monto_pendiente', 'notas', 'fecha_registro']
         read_only_fields = ['id', 'numero', 'fecha_registro']
     
     def get_numero(self, obj):

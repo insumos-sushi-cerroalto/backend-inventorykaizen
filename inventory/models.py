@@ -215,33 +215,22 @@ class Compra(models.Model):
 
 
 class Venta(models.Model):
-    CANALES = [
-        ('local', 'Local'),
-        ('whatsapp', 'WhatsApp'),
-        ('messenger', 'Messenger'),
-        ('instagram', 'Instagram'),
-        ('telefono', 'Teléfono'),
-        ('otro', 'Otro'),
-    ]
-    
     METODOS_PAGO = [
         ('efectivo', 'Efectivo'),
-        ('transferencia', 'Transferencia'),
-        ('factura', 'Factura'),
-        ('debito', 'Debito'),
-        ('credito', 'Crédito'),
+        ('cuenta_rut', 'Cuenta Rut'),
+        ('mercado_pago', 'Mercado Pago'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ventas')
     numero = models.IntegerField(null=True, blank=True, editable=False)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='ventas')
     fecha = models.DateField()
-    canal_venta = models.CharField(max_length=20, choices=CANALES, default='local')
     cliente = models.CharField(max_length=200)
     metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO, default='efectivo')
     cantidad = models.IntegerField(default=1, validators=[MinValueValidator(1)])
     precio_unitario = models.IntegerField(validators=[MinValueValidator(1)])
     pagado = models.BooleanField(default=True)
+    monto_pendiente = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     notas = models.TextField(blank=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
     

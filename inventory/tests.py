@@ -72,6 +72,20 @@ class FinanzasAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()), 105)
 
+    def test_api_venta_persista_monto_pendiente(self):
+        response = self.client.post('/api/ventas/', {
+            'producto': self.producto.id,
+            'fecha': '2026-07-08',
+            'cliente': 'Cliente B',
+            'cantidad': 1,
+            'precio_unitario': 4500,
+            'pagado': False,
+            'monto_pendiente': 4500,
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['monto_pendiente'], 4500)
+
     def test_balance_y_distribucion_api(self):
         MovimientoFinanciero.objects.create(
             user=self.user,

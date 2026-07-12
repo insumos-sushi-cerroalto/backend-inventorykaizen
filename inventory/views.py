@@ -209,7 +209,6 @@ class VentaViewSet(viewsets.ModelViewSet):
         producto = params.get('producto')
         producto_nombre = params.get('producto_nombre')
         cliente = params.get('cliente')
-        canal = params.get('canal') or params.get('canal_venta')
         pagado = params.get('pagado')
         numero = params.get('numero')
         cantidad = params.get('cantidad')
@@ -236,17 +235,22 @@ class VentaViewSet(viewsets.ModelViewSet):
         if producto:
             queryset = queryset.filter(producto_id=producto)
         if producto_nombre:
-            nombres = split_values(producto_nombre)
-            if nombres:
-                queryset = queryset.filter(producto__nombre__in=nombres)
+            filtros_producto = split_values(producto_nombre)
+            if filtros_producto:
+                producto_query = Q()
+                for nombre in filtros_producto:
+                    if nombre.isdigit():
+                        producto_query |= Q(producto_id=int(nombre))
+                    else:
+                        producto_query |= Q(producto__nombre__icontains=nombre)
+                queryset = queryset.filter(producto_query)
         if cliente:
             clientes = split_values(cliente)
             if clientes:
-                queryset = queryset.filter(cliente__in=clientes)
-        if canal:
-            canales = split_values(canal)
-            if canales:
-                queryset = queryset.filter(canal_venta__in=canales)
+                cliente_query = Q()
+                for valor in clientes:
+                    cliente_query |= Q(cliente__icontains=valor)
+                queryset = queryset.filter(cliente_query)
         if pagado:
             valores = []
             for item in split_values(pagado):
@@ -296,7 +300,6 @@ class VentaViewSet(viewsets.ModelViewSet):
                 'fecha': 'fecha',
                 'producto_nombre': 'producto__nombre',
                 'cliente': 'cliente',
-                'canal_venta': 'canal_venta',
                 'cantidad': 'cantidad',
                 'precio_unitario': 'precio_unitario',
                 'pagado': 'pagado',
